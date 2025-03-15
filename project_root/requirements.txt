@@ -1,0 +1,11 @@
+flask==2.3.3            # Web framework
+flask-login==0.6.2      # User session management
+flask-sqlalchemy==3.1.1 # ORM for database interactions
+gunicorn==21.2.0        # WSGI HTTP server
+pymysql==1.1.0          # MySQL adapter
+sqlalchemy==2.0.23      # SQL toolkit and ORM
+email-validator==2.1.0  # Email validation
+werkzeug==2.3.7         # WSGI utilities (includes password hashing)
+python-dotenv==1.0.0    # Environment variable loading
+cryptography==41.0.4    # Used for SSL with PyMySQL
+flask-wtf==1.2.1        # Form handling and CSRF protection

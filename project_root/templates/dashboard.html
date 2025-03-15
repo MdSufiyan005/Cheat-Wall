@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - CheatWall{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-4">
+            CheatWall - An Automated Procting System
+        </h1>
+        <p>Welcome, {{ current_user.username }}!</p>
+        <p>
+            CheatWall is designed to provide an efficient, automated proctoring solution for maintaining academic integrity during examinations. Our system employs advanced monitoring techniques to ensure a secure testing environment for administrators, teachers, and students alike.
+        </p>
+        <p>
+            With features like real-time alerts, comprehensive analytics, and user-friendly interfaces, CheatWall simplifies the process of test administration and monitoring, ensuring that every session runs smoothly.
+        </p>
+        <p>
+            Explore the dashboard to learn more about the capabilities and benefits of our system. For any further assistance, please visit our help section or contact our support team.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

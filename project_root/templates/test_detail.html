@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+
+{% block title %}Test Details - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h1><i class="fas fa-clipboard-list me-2"></i>Test Details</h1>
+        <p class="lead">{{ test.title }}</p>
+    </div>
+    <div class="col-md-6 text-md-end my-3 my-md-0">
+        <form method="POST" action="{{ url_for('toggle_test_activation', test_id=test.id) }}" class="d-inline">
+            <button type="submit" class="btn {{ 'btn-danger' if test.is_active else 'btn-success' }}">
+                <i class="fas {{ 'fa-pause me-2' if test.is_active else 'fa-play me-2' }}"></i>
+                {{ 'Deactivate Test' if test.is_active else 'Activate Test' }}
+            </button>
+        </form>
+        <a href="{{ url_for('test_management') }}" class="btn btn-secondary ms-2">
+            <i class="fas fa-arrow-left me-2"></i>Back to Tests
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Test Information</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Access Code</span>
+                        <code class="h5">{{ test.access_code }}</code>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Status</span>
+                        <span class="badge {{ 'bg-success' if test.is_active else 'bg-danger' }}">
+                            {{ 'Active' if test.is_active else 'Inactive' }}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Start Time</span>
+                        <span>{{ test.start_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>End Time</span>
+                        <span>{{ test.end_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Total Duration</span>
+                        <span>{{ ((test.end_time - test.start_time).total_seconds() / 60)|int }} minutes</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Teacher</span>
+                        <span>{{ test.teacher.user.username }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-clipboard me-2"></i>Test Description</h5>
+            </div>
+            <div class="card-body">
+                {% if test.description %}
+                <p>{{ test.description|nl2br }}</p>
+                {% else %}
+                <p class="text-muted">No description provided.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Session Statistics</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="sessionChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        
+        <div class="card shadow mt-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-list-check me-2"></i>Whitelisted Processes</h5>
+            </div>
+            <div class="card-body">
+                {% if test.whitelisted_processes %}
+                <div class="row">
+                    {% for process in test.get_whitelisted_processes() %}
+                    <div class="col-md-4 mb-2">
+                        <span class="badge bg-success p-2">
+                            <i class="fas fa-check-circle me-1"></i>{{ process }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No processes have been whitelisted for this test.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Active Sessions ({{ active_sessions|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if active_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Start Time</th>
+                                <th>Duration</th>
+                                <th>Risk Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in active_sessions %}
+                            <tr>
+                                <td>{{ session.student.user.username }}</td>
+                                <td>{{ session.start_time.strftime('%H:%M:%S') }}</td>
+                                <td>{{ ((loop.now - session.start_time).total_seconds() / 60)|int }} min</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar 
+                                            {% if session.total_risk_score < 0.3 %}
+                                                bg-success
+                                            {% elif session.total_risk_score < 0.7 %}
+                                                bg-warning
+                                            {% else %}
+                                                bg-danger
+                                            {% endif %}
+                                        " role="progressbar" style="width: {{ session.total_risk_score * 100 }}%;" 
+                                        aria-valuenow="{{ session.total_risk_score * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ "%.0f"|format(session.total_risk_score * 100) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('student_detail', session_id=session.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No active sessions at the moment.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow mt-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Flagged Sessions ({{ flagged_sessions|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if flagged_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Start Time</th>
+                                <th>Risk Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in flagged_sessions %}
+                            <tr>
+                                <td>{{ session.student.user.username }}</td>
+                                <td>{{ session.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-danger" role="progressbar" 
+                                            style="width: {{ session.total_risk_score * 100 }}%;" 
+                                            aria-valuenow="{{ session.total_risk_score * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ "%.0f"|format(session.total_risk_score * 100) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('student_detail', session_id=session.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No flagged sessions.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Completed Sessions ({{ completed_sessions|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if completed_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Duration</th>
+                                <th>Risk Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in completed_sessions %}
+                            <tr>
+                                <td>{{ session.student.user.username }}</td>
+                                <td>{{ session.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ session.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ ((session.end_time - session.start_time).total_seconds() / 60)|int }} min</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar 
+                                            {% if session.total_risk_score < 0.3 %}
+                                                bg-success
+                                            {% elif session.total_risk_score < 0.7 %}
+                                                bg-warning
+                                            {% else %}
+                                                bg-danger
+                                            {% endif %}
+                                        " role="progressbar" style="width: {{ session.total_risk_score * 100 }}%;" 
+                                        aria-valuenow="{{ session.total_risk_score * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ "%.0f"|format(session.total_risk_score * 100) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('student_detail', session_id=session.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No completed sessions yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/test_detail.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Session statistics chart
+    const ctx = document.getElementById('sessionChart').getContext('2d');
+    const sessionChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Active', 'Flagged', 'Completed'],
+            datasets: [{
+                data: [
+                    {{ active_sessions|length }}, 
+                    {{ flagged_sessions|length }}, 
+                    {{ completed_sessions|length }}
+                ],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.7)',  // green
+                    'rgba(220, 53, 69, 0.7)',  // red
+                    'rgba(108, 117, 125, 0.7)' // gray
+                ],
+                borderColor: [
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)',
+                    'rgba(108, 117, 125, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

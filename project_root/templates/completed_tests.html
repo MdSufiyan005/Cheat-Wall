@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block title %}Completed Tests Dashboard - Proctoring Admin{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="fas fa-clipboard-check me-2"></i>Completed Tests Dashboard</h1>
+        <p class="lead">View completed test sessions, student data, and detected risk factors.</p>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button id="exportCSV" class="btn btn-outline-success">
+            <i class="fas fa-file-csv me-2"></i>Export to CSV
+        </button>
+    </div>
+</div>
+
+<!-- Dashboard Summary -->
+<div class="row mb-4" id="dashboard-summary">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Total Sessions</h6>
+                        <p class="fs-2 fw-bold mb-0" id="session-count">{{ session_data|length }}</p>
+                    </div>
+                    <i class="fas fa-users-class fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Average Risk Score</h6>
+                        <p class="fs-2 fw-bold mb-0" id="avg-risk">
+                            {% if session_data %}
+                                {% set total_risk = 0 %}
+                                {% for data in session_data %}
+                                    {% set total_risk = total_risk + data.session.total_risk_score %}
+                                {% endfor %}
+                                {{ "%.1f"|format((total_risk / session_data|length) * 100) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </p>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">High Risk Sessions</h6>
+                        <p class="fs-2 fw-bold mb-0" id="high-risk-count">
+                            {% set high_risk_count = 0 %}
+                            {% for data in session_data %}
+                                {% if data.session.total_risk_score >= 0.7 %}
+                                    {% set high_risk_count = high_risk_count + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ high_risk_count }}
+                        </p>
+                    </div>
+                    <i class="fas fa-radiation-alt fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Controls -->
+<div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filter Sessions</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="testFilter" class="form-label">Filter by Test</label>
+                <select class="form-select" id="testFilter">
+                    <option value="all" selected>All Tests</option>
+                    {% set tests = [] %}
+                    {% for data in session_data %}
+                        {% if data.session.test not in tests %}
+                            {% set _ = tests.append(data.session.test) %}
+                            <option value="{{ data.session.test.id }}">{{ data.session.test.title }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="riskFilter" class="form-label">Filter by Risk Level</label>
+                <select class="form-select" id="riskFilter">
+                    <option value="all" selected>All Risk Levels</option>
+                    <option value="high">High Risk (>70%)</option>
+                    <option value="medium">Medium Risk (30-70%)</option>
+                    <option value="low">Low Risk (<30%)</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="searchFilter" class="form-label">Search Student</label>
+                <input type="text" class="form-control" id="searchFilter" placeholder="Name or ID...">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sessions Table -->
+<div class="card shadow">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="fas fa-table me-2"></i>Completed Sessions ({{ session_data|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if session_data %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="completedSessionsTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Enrollment #</th>
+                        <th>Test</th>
+                        <th>Completion Time</th>
+                        <th>Duration</th>
+                        <th>Risk Score</th>
+                        <th>Screenshots</th>
+                        <th>Risk Flags</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data in session_data %}
+                    <tr data-test-id="{{ data.session.test.id }}" 
+                        data-risk="{{ data.session.total_risk_score }}"
+                        data-student="{{ data.session.student.user.username }}"
+                        data-id="{{ data.session.student.student_id }}">
+                        <td>{{ data.session.student.user.username }}</td>
+                        <td>{{ data.session.student.student_id }}</td>
+                        <td>{{ data.session.test.title }}</td>
+                        <td>{{ data.session.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if data.session.start_time and data.session.end_time %}
+                                {{ ((data.session.end_time - data.session.start_time).total_seconds() / 60)|int }} min
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-2" style="height: 10px;">
+                                    <div class="progress-bar 
+                                        {% if data.session.total_risk_score < 0.3 %}
+                                            bg-success
+                                        {% elif data.session.total_risk_score < 0.7 %}
+                                            bg-warning
+                                        {% else %}
+                                            bg-danger
+                                        {% endif %}
+                                    " role="progressbar" style="width: {{ data.session.total_risk_score * 100 }}%;" 
+                                    aria-valuenow="{{ data.session.total_risk_score * 100 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <span class="badge
+                                    {% if data.session.total_risk_score < 0.3 %}
+                                        bg-success
+                                    {% elif data.session.total_risk_score < 0.7 %}
+                                        bg-warning
+                                    {% else %}
+                                        bg-danger
+                                    {% endif %}
+                                ">
+                                    {{ "%.0f"|format(data.session.total_risk_score * 100) }}%
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ data.screenshot_count }}</span>
+                            {% if data.screenshot_count > 0 %}
+                            <i class="fas fa-link text-info ms-1" title="Screenshots available as links"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if data.risk_flag_count > 0 %}
+                                    bg-danger
+                                {% else %}
+                                    bg-secondary
+                                {% endif %}
+                            ">{{ data.risk_flag_count }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('student_detail', session_id=data.session.id) }}" class="btn btn-sm btn-info" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button class="btn btn-sm btn-success generate-report-btn" data-session-id="{{ data.session.id }}" title="Generate Report">
+                                <i class="fas fa-file-pdf"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>No completed test sessions available.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Risk Distribution Chart -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Risk Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="riskDistributionChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Sessions by Test</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="testDistributionChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/completed_tests.js') }}"></script>
+{% endblock %} 

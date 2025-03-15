@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Test Code - Proctoring Admin{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="fas fa-key me-2"></i>Generate Test Code</h1>
+        <p class="lead">Create a new test and generate an access code for students.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Test Information</h5>
+            </div>
+            <div class="card-body">
+                <form id="code-generation-form" method="POST" action="{{ url_for('code_generation') }}">
+                    {% if current_user.role == 'admin' and teachers %}
+                    <div class="mb-3">
+                        <label for="teacher_id" class="form-label">Teacher</label>
+                        <select class="form-select" id="teacher_id" name="teacher_id" required>
+                            <option value="" selected disabled>Select a teacher</option>
+                            {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}">{{ teacher.user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Test Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required placeholder="E.g., Midterm Exam - CS101">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Enter test description and instructions"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_time" class="form-label">Start Time</label>
+                                <input type="datetime-local" class="form-control" id="start_time" name="start_time" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="end_time" class="form-label">End Time</label>
+                                <input type="datetime-local" class="form-control" id="end_time" name="end_time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 process-selection-section" id="process-selection-container">
+                        <label for="whitelisted_processes" class="form-label">Whitelisted Processes</label>
+                        <div class="form-text mb-2">Select which applications students are allowed to use during the test</div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="card-subtitle mb-0 d-flex justify-content-between align-items-center">
+                                    Common Applications
+                                    <button type="button" id="select-all-processes" class="btn btn-sm btn-outline-secondary">Select All</button>
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="chrome.exe" id="chrome" name="whitelisted_processes">
+                                            <label class="form-check-label" for="chrome">
+                                                <i class="fab fa-chrome me-1"></i> Chrome Browser
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="firefox.exe" id="firefox" name="whitelisted_processes">
+                                            <label class="form-check-label" for="firefox">
+                                                <i class="fab fa-firefox me-1"></i> Firefox Browser
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="msedge.exe" id="edge" name="whitelisted_processes">
+                                            <label class="form-check-label" for="edge">
+                                                <i class="fab fa-edge me-1"></i> Microsoft Edge
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="safari.exe" id="safari" name="whitelisted_processes">
+                                            <label class="form-check-label" for="safari">
+                                                <i class="fab fa-safari me-1"></i> Safari
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="code.exe" id="vscode" name="whitelisted_processes">
+                                            <label class="form-check-label" for="vscode">
+                                                <i class="fas fa-code me-1"></i> Visual Studio Code
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="calc.exe" id="calculator" name="whitelisted_processes">
+                                            <label class="form-check-label" for="calculator">
+                                                <i class="fas fa-calculator me-1"></i> Calculator
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="notepad.exe" id="notepad" name="whitelisted_processes">
+                                            <label class="form-check-label" for="notepad">
+                                                <i class="fas fa-edit me-1"></i> Notepad
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" value="explorer.exe" id="explorer" name="whitelisted_processes">
+                                            <label class="form-check-label" for="explorer">
+                                                <i class="fas fa-folder-open me-1"></i> File Explorer
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="custom_processes" class="form-label">Custom Processes (comma-separated)</label>
+                            <input type="text" class="form-control" id="custom_processes" name="custom_processes" 
+                                placeholder="e.g., pycharm.exe, word.exe, excel.exe">
+                            <div class="form-text">
+                                Add any additional processes that are not in the list above. Separate multiple processes with commas.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-key me-2"></i>Generate Test Code
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Guidance</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">How Test Codes Work</h6>
+                <p>Test codes are unique alphanumeric codes that students will use to access their proctored exam.</p>
+                
+                <ul class="list-group list-group-flush mt-3 mb-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-check-circle text-success me-2"></i>Secure and Unique</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-check-circle text-success me-2"></i>Valid for One Test Only</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-check-circle text-success me-2"></i>Time-Limited Access</span>
+                    </li>
+                </ul>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Important:</strong> Share this code with your students before the test begins.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if encrypted_code %}
+<div class="card mt-4 shadow">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Test Created Successfully</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-key me-2"></i>Share this access code with students:</h6>
+                    <div class="d-flex align-items-center mt-2 mb-2">
+                        <code id="access-code" class="bg-light p-2 rounded fs-5 d-block w-100 text-center">{{ access_code }}</code>
+                    </div>
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="copyToClipboard('access-code')">
+                        <i class="fas fa-copy me-1"></i> Copy Access Code
+                    </button>
+                </div>
+                
+                {% if test %}
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Test Details</h6>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Title:</span>
+                            <strong>{{ test.title }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Start Time:</span>
+                            <strong>{{ test.start_time.strftime('%B %d, %Y %I:%M %p') }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>End Time:</span>
+                            <strong>{{ test.end_time.strftime('%B %d, %Y %I:%M %p') }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Duration:</span>
+                            <strong>{{ ((test.end_time - test.start_time).total_seconds() / 60)|int }} minutes</strong>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6">
+                <h6><i class="fas fa-shield-alt me-2"></i>Encrypted Test Data (for desktop client):</h6>
+                <div class="mb-3">
+                    <textarea id="encrypted-code" class="form-control font-monospace bg-light" rows="6" readonly>{{ encrypted_code }}</textarea>
+                </div>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="copyToClipboard('encrypted-code')">
+                        <i class="fas fa-copy me-2"></i> Copy Encrypted Code
+                    </button>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i>What is this code?</h6>
+                    <p class="small mb-1">This encrypted code contains:</p>
+                    <ul class="small mb-0">
+                        <li>Test ID and access credentials</li>
+                        <li>Start and end time restrictions</li>
+                        <li>Approved application whitelist</li>
+                        <li>Security verification hash</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <a href="{{ url_for('test_management') }}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-clipboard-list me-2"></i>View All Tests
+            </a>
+            <a href="{{ url_for('code_generation') }}" class="btn btn-outline-success">
+                <i class="fas fa-plus me-2"></i>Create Another Test
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/code_generation.js') }}"></script>
+{% endblock %}

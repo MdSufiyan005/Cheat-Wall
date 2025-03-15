@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Session - {{ session.student.user.username }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h1><i class="fas fa-user-graduate me-2"></i>Student Session</h1>
+        <p class="lead">{{ session.student.user.username }} - {{ session.test.title }}</p>
+    </div>
+    <div class="col-md-6 text-md-end my-3 my-md-0">
+        <a href="{{ url_for('test_detail', test_id=session.test.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Test
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Session Information</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Student</span>
+                        <span>{{ session.student.user.username }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Student ID</span>
+                        <span>{{ session.student.student_id }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Test</span>
+                        <span>{{ session.test.title }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Start Time</span>
+                        <span>{{ session.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>End Time</span>
+                        {% if session.end_time %}
+                        <span>{{ session.end_time.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                        {% else %}
+                        <span class="text-muted">In progress</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Status</span>
+                        <span class="badge 
+                            {% if session.session_status == 'active' %}bg-success
+                            {% elif session.session_status == 'completed' %}bg-info
+                            {% elif session.session_status == 'flagged' %}bg-danger
+                            {% endif %}">
+                            {{ session.session_status|capitalize }}
+                        </span>
+                    </li>
+                    <li class="list-group-item">
+                        <span>Overall Risk Score</span>
+                        <div class="progress mt-2" style="height: 20px;">
+                            <div class="progress-bar 
+                                {% if session.total_risk_score < 0.3 %}
+                                    bg-success
+                                {% elif session.total_risk_score < 0.7 %}
+                                    bg-warning
+                                {% else %}
+                                    bg-danger
+                                {% endif %}
+                            " role="progressbar" style="width: {{ session.total_risk_score * 100 }}%;" 
+                            aria-valuenow="{{ session.total_risk_score * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ "%.0f"|format(session.total_risk_score * 100) }}%
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Risk Flags ({{ risk_flags|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if risk_flags %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Severity</th>
+                                <th>Time</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for flag in risk_flags %}
+                            <tr>
+                                <td>
+                                    <span class="badge 
+                                        {% if flag.flag_type == 'multiple_faces' %}bg-danger
+                                        {% elif flag.flag_type == 'no_face' %}bg-warning
+                                        {% elif flag.flag_type == 'phone_detected' %}bg-danger
+                                        {% elif flag.flag_type == 'looking_away' %}bg-warning
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {{ flag.flag_type|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar 
+                                            {% if flag.severity < 0.3 %}
+                                                bg-success
+                                            {% elif flag.severity < 0.7 %}
+                                                bg-warning
+                                            {% else %}
+                                                bg-danger
+                                            {% endif %}
+                                        " role="progressbar" style="width: {{ flag.severity * 100 }}%;" 
+                                        aria-valuenow="{{ flag.severity * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ "%.0f"|format(flag.severity * 100) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ flag.timestamp.strftime('%H:%M:%S') }}</td>
+                                <td>{{ flag.description }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No risk flags detected for this session.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Risk Timeline</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="riskChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mt-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0"><i class="fas fa-images me-2"></i>Screenshots ({{ screenshots|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if screenshots %}
+        <div class="row">
+            <div class="col-md-8">
+                <div id="screenshotCarousel" class="carousel slide" data-bs-ride="false">
+                    <div class="carousel-inner">
+                        {% for screenshot in screenshots %}
+                        <div class="carousel-item {% if loop.first %}active{% endif %}" data-id="{{ screenshot.id }}" data-timestamp="{{ screenshot.timestamp.isoformat() }}" data-risk="{{ screenshot.risk_score }}">
+                            <div class="screenshot-container text-center">
+                                <div id="loading-{{ screenshot.id }}" class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <img src="" class="screenshot-img d-none img-fluid" alt="Screenshot {{ loop.index }}">
+                                <div class="mt-2 open-image-link d-none">
+                                    <a href="#" class="btn btn-sm btn-primary" target="_blank">
+                                        <i class="fas fa-external-link-alt me-1"></i>Open in New Tab
+                                    </a>
+                                    <span class="badge bg-info ms-2">
+                                        <i class="fas fa-link me-1"></i>External Link
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="carousel-caption d-none d-md-block bg-dark bg-opacity-75 rounded p-2">
+                                <h5>Screenshot #{{ loop.index }}</h5>
+                                <p class="mb-0">{{ screenshot.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    <div class="progress-bar 
+                                        {% if screenshot.risk_score < 0.3 %}
+                                            bg-success
+                                        {% elif screenshot.risk_score < 0.7 %}
+                                            bg-warning
+                                        {% else %}
+                                            bg-danger
+                                        {% endif %}
+                                    " role="progressbar" style="width: {{ screenshot.risk_score * 100 }}%;" 
+                                    aria-valuenow="{{ screenshot.risk_score * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#screenshotCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#screenshotCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Screenshot Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="screenshot-details">
+                            <p><strong>Time:</strong> <span id="screenshot-time"></span></p>
+                            <p><strong>Risk Score:</strong> <span id="screenshot-risk"></span></p>
+                            <div class="progress mb-3" style="height: 20px;">
+                                <div id="screenshot-risk-bar" class="progress-bar" role="progressbar" style="width: 0%;" 
+                                aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="mb-0"><strong>Analysis:</strong></p>
+                            <div id="screenshot-analysis" class="alert alert-info mt-2">
+                                Select a screenshot to see its analysis.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="btn-group">
+                        <button id="play-slideshow" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>Play Slideshow
+                        </button>
+                        <button id="pause-slideshow" class="btn btn-warning d-none">
+                            <i class="fas fa-pause me-2"></i>Pause
+                        </button>
+                    </div>
+                    
+                    <span id="screenshot-counter" class="text-muted">
+                        1 / {{ screenshots|length }}
+                    </span>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-outline-secondary" data-bs-target="#screenshotCarousel" data-bs-slide="prev">
+                            <i class="fas fa-chevron-left me-2"></i>Previous
+                        </button>
+                        <button class="btn btn-outline-secondary" data-bs-target="#screenshotCarousel" data-bs-slide="next">
+                            Next<i class="fas fa-chevron-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted">No screenshots available for this session.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/student_detail.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Risk timeline chart
+    const ctx = document.getElementById('riskChart').getContext('2d');
+    
+    // Prepare data for chart
+    const timestamps = [];
+    const riskScores = [];
+    
+    {% for screenshot in screenshots %}
+        timestamps.push("{{ screenshot.timestamp.strftime('%H:%M:%S') }}");
+        riskScores.push({{ screenshot.risk_score }});
+    {% endfor %}
+    
+    const riskChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timestamps,
+            datasets: [{
+                label: 'Risk Score',
+                data: riskScores,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderWidth: 2,
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 1
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Risk: ${(context.raw * 100).toFixed(0)}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
